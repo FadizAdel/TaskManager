@@ -120,9 +120,7 @@ namespace TaskManager.Controllers
             return View(task);
         }
 
-        [HttpPost]
-
-
+        [HttpGet]
         // GET: Task/Delete/5
         public async Task<IActionResult> Delete(int? id)
         {
