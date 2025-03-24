@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using TaskManager.Models;
+using System;
 
 namespace TaskManager
 {
@@ -11,12 +12,19 @@ namespace TaskManager
 
             // Add services to the container.
             builder.Services.AddControllersWithViews();
+            
+            // Configure session before building the app
+            builder.Services.AddSession(options =>
+            {
+                options.IdleTimeout = TimeSpan.FromMinutes(30);
+                options.Cookie.HttpOnly = true;
+                options.Cookie.IsEssential = true;
+            });
 
             builder.Services.AddDbContext<ApplicationDbContext>(options =>
                 options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
             var app = builder.Build();
-
 
             // Configure the HTTP request pipeline.
             if (!app.Environment.IsDevelopment())
@@ -28,8 +36,11 @@ namespace TaskManager
 
             app.UseHttpsRedirection();
             app.UseStaticFiles();
-
             app.UseRouting();
+            
+            // Use session middleware
+            app.UseSession();
+            
             app.UseAuthorization();
 
             app.MapControllerRoute(

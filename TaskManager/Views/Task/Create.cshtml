@@ -1,54 +1,43 @@
-﻿@model TaskManager.Models.Task
+﻿@model TaskManager.Models.TaskItem
 
 @{
-    ViewData["Title"] = "Create";
+    ViewData["Title"] = "Create Task";
 }
 
+<h2>Create New Task</h2>
 
-<h4>Task</h4>
-<hr />
-<div class="row">
-    <div class="col-md-4">
-        <form asp-action="Create" class="card p-4 shadow">
-            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-            <div class="form-group" class="mb-3">
-                <label asp-for="Title" class="control-label" class="form-label"></label>
-                <input asp-for="Title" class="form-control" />
-                <span asp-validation-for="Title" class="text-danger"></span>
-            </div>
-            <div class="form-group" class="mb-3">
-                <label asp-for="Description" class="control-label"></label>
-                <input asp-for="Description" class="form-control" />
-                <span asp-validation-for="Description" class="text-danger"></span>
-            </div>
-            <div class="form-group form-check" class="mb-3">
-                <label class="form-check-label">
-                    <input class="form-check-input" asp-for="IsCompleted" /> @Html.DisplayNameFor(model => model.IsCompleted)
-                </label>
-            </div>
-            <div class="form-group" class="mb-3">
-                <label asp-for="DueDate" class="control-label"></label>
-                <input asp-for="DueDate" class="form-control" />
-                <span asp-validation-for="DueDate" class="text-danger"></span>
-            </div>
-            <div class="form-group" class="mb-3">
-                <label for="Status">Status</label>
-                <select asp-for="Status" class="form-control" asp-items=
-                "Html.GetEnumSelectList<TaskManager.Models.TaskStatus>()"></select>
-            </div>
-            <div class="form-group" class="mb-3">
-                <input type="submit" value="Create" class="btn btn-outline-info" />
-            </div>
-        </form>
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger">@TempData["ErrorMessage"]</div>
+}
+
+<form asp-controller="Task" asp-action="Create" method="post">
+    <div asp-validation-summary="All" class="text-danger"></div>
+    
+    <div class="form-group mb-3">
+        <label asp-for="Title" class="control-label"></label>
+        <input asp-for="Title" class="form-control" required />
+        <span asp-validation-for="Title" class="text-danger"></span>
     </div>
-</div>
-
-<div>
-    <a class="btn btn-outline-info btn-sm" asp-action="Index">Back to List</a>
-</div>
+    
+    <div class="form-group mb-3">
+        <label asp-for="Description" class="control-label"></label>
+        <textarea asp-for="Description" class="form-control" rows="3"></textarea>
+        <span asp-validation-for="Description" class="text-danger"></span>
+    </div>
+    
+    <div class="form-group mb-3">
+        <label asp-for="DueDate" class="control-label"></label>
+        <input asp-for="DueDate" class="form-control" type="date" />
+        <span asp-validation-for="DueDate" class="text-danger"></span>
+    </div>
+    
+    <div class="form-group mb-3">
+        <button type="submit" class="btn btn-primary">Create Task</button>
+        <a asp-action="Index" class="btn btn-secondary">Back to List</a>
+    </div>
+</form>
 
 @section Scripts {
-    @{
-        await Html.RenderPartialAsync("_ValidationScriptsPartial");
-    }
+    <partial name="_ValidationScriptsPartial" />
 }

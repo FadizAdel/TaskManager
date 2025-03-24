@@ -1,7 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
 using System;
-using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace TaskManager.Models
 {
@@ -25,7 +25,12 @@ namespace TaskManager.Models
         [DataType(DataType.Date)]
         public DateTime DueDate { get; set; }
 
-        public TaskStatus Status { get; set; } 
+        public TaskStatus Status { get; set; }
+
+        [ForeignKey("User")]
+        public int UserId { get; set; }
+
+        public User User { get; set; }
 
     }
 }

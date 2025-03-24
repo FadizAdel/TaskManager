@@ -1,161 +1,194 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Rendering;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System;
+using System.Linq;
 using TaskManager.Models;
-namespace TaskManager.Controllers
+using Microsoft.AspNetCore.Http;
+using System.Collections.Generic;
+
+public class TaskController : Controller
 {
-    public class TaskController : Controller
+    private readonly ApplicationDbContext _context;
+
+    public TaskController(ApplicationDbContext context)
     {
-        private readonly ApplicationDbContext _context;
+        _context = context;
+    }
 
-        public TaskController(ApplicationDbContext context)
+    public IActionResult Index()
+    {
+        // Get the current user ID from session
+        int? userId = HttpContext.Session.GetInt32("UserId");
+        
+        if (!userId.HasValue)
         {
-            _context = context;
+            return RedirectToAction("Login", "Account");
         }
 
-        // GET: Task
-        public async Task<IActionResult> Index(string statusFilter)
-        {
-            var tasks = _context.Tasks.AsQueryable();
+        // Get tasks for the current user
+        var tasks = _context.Tasks.Where(t => t.UserId == userId.Value).ToList();
+        return View(tasks);
+    }
 
-            if (!string.IsNullOrEmpty(statusFilter))
+    public IActionResult Create()
+    {
+        return View();
+    }
+
+    [HttpPost]
+    public IActionResult Create(TaskItem task)
+    {
+        try
+        {
+            int? userId = HttpContext.Session.GetInt32("UserId");
+            
+            if (!userId.HasValue)
             {
-                Models.TaskStatus status = Enum.Parse<Models.TaskStatus>(statusFilter);
-                tasks = tasks.Where(t => t.Status == status);
+                return RedirectToAction("Login", "Account");
             }
 
-            return View(tasks.ToList());
+            // Set the required properties
+            task.UserId = userId.Value;
+            task.CreatedDate = DateTime.Now;
+            task.IsCompleted = false;
+            
+            // Add and save
+            _context.Tasks.Add(task);
+            var result = _context.SaveChanges();
+            
+            // Check if changes were saved
+            if (result > 0)
+            {
+                TempData["SuccessMessage"] = "Task created successfully!";
+            }
+            else
+            {
+                TempData["ErrorMessage"] = "Failed to save task.";
+            }
+            
+            return RedirectToAction("Index");
         }
-
-        // GET: Task/Details/5
-        public async Task<IActionResult> Details(int? id)
+        catch (Exception ex)
         {
-            if (id == null)
-            {
-                return NotFound();
-            }
-
-            var task = await _context.Tasks
-                .FirstOrDefaultAsync(m => m.Id == id);
-            if (task == null)
-            {
-                return NotFound();
-            }
-
+            // Log the exception details
+            ModelState.AddModelError("", $"Error: {ex.Message}");
             return View(task);
         }
+    }
 
-        // GET: Task/Create
-        public IActionResult Create()
+    public IActionResult Edit(int id)
+    {
+        int? userId = HttpContext.Session.GetInt32("UserId");
+        
+        if (!userId.HasValue)
         {
-            return View();
+            return RedirectToAction("Login", "Account");
         }
 
-        // POST: Task/Create
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("Id,Title,Description,IsCompleted,DueDate,Status")] Models.Task task)
+        var task = _context.Tasks.FirstOrDefault(t => t.Id == id && t.UserId == userId.Value);
+        
+        if (task == null)
         {
-            if (ModelState.IsValid)
+            return NotFound();
+        }
+        
+        return View(task);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public IActionResult Edit(int id, TaskItem taskModel)
+    {
+        int? userId = HttpContext.Session.GetInt32("UserId");
+        
+        if (!userId.HasValue)
+        {
+            return RedirectToAction("Login", "Account");
+        }
+    
+        // Ensure we're editing the correct task
+        if (id != taskModel.Id)
+        {
+            return NotFound();
+        }
+    
+        // Make sure the task belongs to the current user
+        var existingTask = _context.Tasks.FirstOrDefault(t => t.Id == id && t.UserId == userId.Value);
+        
+        if (existingTask == null)
+        {
+            return NotFound();
+        }
+    
+        if (ModelState.IsValid)
+        {
+            try
             {
-                _context.Add(task);
-                await _context.SaveChangesAsync();
+                // Update only the properties that should be editable
+                existingTask.Title = taskModel.Title;
+                existingTask.Description = taskModel.Description;
+                existingTask.DueDate = taskModel.DueDate;
+                existingTask.IsCompleted = taskModel.IsCompleted;
+                
+                // Save changes
+                _context.SaveChanges();
+                
                 return RedirectToAction(nameof(Index));
             }
-            return View(task);
+            catch (Exception ex)
+            {
+                // Add error to model state
+                ModelState.AddModelError("", $"Error updating task: {ex.Message}");
+            }
         }
+        
+        return View(taskModel);
+    }
 
-        // GET: Task/Edit/5
-        public async Task<IActionResult> Edit(int? id)
+    private bool TaskExists(int id)
+    {
+        return _context.Tasks.Any(e => e.Id == id);
+    }
+
+    [HttpPost]
+    public IActionResult Delete(int id)
+    {
+        int? userId = HttpContext.Session.GetInt32("UserId");
+        
+        if (!userId.HasValue)
         {
-            if (id == null)
-            {
-                return NotFound();
-            }
-
-            var task = await _context.Tasks.FindAsync(id);
-            if (task == null)
-            {
-                return NotFound();
-            }
-            return View(task);
+            return RedirectToAction("Login", "Account");
         }
 
-        // POST: Task/Edit/5
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("Id,Title,Description,IsCompleted,DueDate,Status")] Models.Task task)
+        var task = _context.Tasks.FirstOrDefault(t => t.Id == id && t.UserId == userId.Value);
+        
+        if (task != null)
         {
-            if (id != task.Id)
-            {
-                return NotFound();
-            }
-
-            if (ModelState.IsValid)
-            {
-                try
-                {
-                    _context.Update(task);
-                    await _context.SaveChangesAsync();  // Save changes to DB
-                }
-                catch (DbUpdateConcurrencyException)
-                {
-                    if (!TaskExists(task.Id))
-                    {
-                        return NotFound();
-                    }
-                    else
-                    {
-                        throw;
-                    }
-                }
-                return RedirectToAction(nameof(Index));  // Redirect to task list
-            }
-            return View(task);
+            _context.Tasks.Remove(task);
+            _context.SaveChanges();
         }
+        
+        return RedirectToAction("Index");
+    }
 
-        [HttpGet]
-        // GET: Task/Delete/5
-        public async Task<IActionResult> Delete(int? id)
+    [HttpPost]
+    public IActionResult ToggleComplete(int id)
+    {
+        int? userId = HttpContext.Session.GetInt32("UserId");
+        
+        if (!userId.HasValue)
         {
-            if (id == null)
-            {
-                return NotFound();
-            }
-
-            var task = await _context.Tasks.FindAsync(id);
-            if (task == null)
-            {
-                return NotFound();
-            }
-            return View(task);
-
+            return RedirectToAction("Login", "Account");
         }
 
-        // POST: Task/Delete/5
-        [HttpPost, ActionName("Delete")]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DeleteConfirmed(int id)
+        var task = _context.Tasks.FirstOrDefault(t => t.Id == id && t.UserId == userId.Value);
+        
+        if (task != null)
         {
-            var task = await _context.Tasks.FindAsync(id);
-            if (task != null)
-            {
-                _context.Tasks.Remove(task);
-            }
-
-            await _context.SaveChangesAsync();
-            return RedirectToAction(nameof(Index));
+            task.IsCompleted = !task.IsCompleted;
+            _context.SaveChanges();
         }
-
-        private bool TaskExists(int id)
-        {
-            return _context.Tasks.Any(e => e.Id == id);
-        }
+        
+        return RedirectToAction("Index");
     }
 }
